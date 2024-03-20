@@ -196,6 +196,9 @@ export default class AdministradoresController {
  *               contrasena:
  *                 type: string
  *                 description: New password
+ *               codigo_verificacion:
+ *                 type: number
+ *                 description: Codigo
  *     responses:
  *       200:
  *         description: Success! Tout va bien :)
@@ -214,30 +217,36 @@ export default class AdministradoresController {
   public async update({response,params, request}: HttpContextContract){
         //agregar aca que se mande un SMS o correo para recuperar contraseña//
     try {
-      const {contrasena, correo} = request.body();
+      const {contrasena, codigo_verificacion} = request.body();
       const admin = await Administrador.findOrFail(params.id_user);
       const codigo = admin.codigo_verificacion
-
-      admin.contrasena = contrasena
+      const correo = admin.correo
       
-      await admin.save()
-
-      process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-      await Mail.send((message)=>{
-        message
-        .from(Env.get('SMTP_USERNAME'), 'Recuperacion de contraseña')
-        .to(correo)
-        .subject(`Se actualizo la contraseña`)
-        .htmlView('emails/contrasena',{contrasena})
-      })
-
-      return response.status(200).send({
-        title:'Success',
-        message:'Password update',
-        data: codigo
-      })
-
+      if(admin.codigo_verificacion == codigo_verificacion){
+        admin.contrasena = contrasena
       
+        await admin.save()
+  
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+        await Mail.send((message)=>{
+          message
+          .from(Env.get('SMTP_USERNAME'), 'Recuperacion de contraseña')
+          .to(correo)
+          .subject(`Se actualizo la contraseña`)
+          .htmlView('emails/contrasena',{contrasena})
+        })
+  
+        return response.status(200).send({
+          title:'Success',
+          message:'Password update',
+          data: codigo
+        })
+  
+      }
+      return response.status(500).send({
+        title:'Error',
+        message:'Datos invalidos'
+      })
     } catch (error) {
       if(error.code === 'E_ROW_NOT_FOUND'){
         return response.status(404).send({
